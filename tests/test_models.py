@@ -4,6 +4,8 @@ from src.models.base import BaseBackbone
 from src.utils.config import BEVConfig
 from src.models.blocks import ConvBNReLU, ResidualBlock
 from src.models.resnet import BEVResNet
+from src.models.registry import ModelRegistry
+import src.models.resnet  # triggers registration
 
 def test_config_defaults():
     cfg = BEVConfig()
@@ -97,3 +99,16 @@ def test_bevresnet_fulfills_contract():
     assert isinstance(model, BaseBackbone)
     ch = model.get_output_channels()
     assert ch["C5"] == 512
+
+def test_registry_contains_bevresnet():
+    assert "bevresnet" in ModelRegistry.available()
+
+def test_registry_get_and_instantiate():
+    cfg = BEVConfig()
+    cls = ModelRegistry.get("bevresnet")
+    model = cls(cfg)
+    assert isinstance(model, BaseBackbone)
+
+def test_registry_missing_key():
+    with pytest.raises(KeyError):
+        ModelRegistry.get("nonexistent")

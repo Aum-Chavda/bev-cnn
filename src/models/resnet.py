@@ -4,8 +4,9 @@ import torch.nn as nn
 from src.utils.config import BEVConfig
 from src.models.base import BaseBackbone
 from src.models.blocks import ConvBNReLU, ResidualBlock
+from src.models.registry import ModelRegistry
 
-
+@ModelRegistry.register("bevresnet")
 class BEVResNet(BaseBackbone):
     """
     OOP: inherits from BaseBackbone, fulfills the ABC contract
