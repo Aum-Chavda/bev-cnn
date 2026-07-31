@@ -6,6 +6,7 @@ from src.models.blocks import ConvBNReLU, ResidualBlock
 from src.models.resnet import BEVResNet
 from src.models.registry import ModelRegistry
 import src.models.resnet  # triggers registration
+from src.data.dataset import BEVDataset
 
 def test_config_defaults():
     cfg = BEVConfig()
@@ -112,3 +113,29 @@ def test_registry_get_and_instantiate():
 def test_registry_missing_key():
     with pytest.raises(KeyError):
         ModelRegistry.get("nonexistent")
+def test_dataset_len():
+    ds = BEVDataset(root="data/", split="train")
+    assert len(ds) == 50000
+
+def test_dataset_getitem_shape():
+    ds = BEVDataset(root="data/", split="train")
+    img, label = ds[0]
+    assert img.shape == (3, 256, 256)
+    assert isinstance(label, int)
+
+def test_dataset_val_split():
+    ds = BEVDataset(root="data/", split="val")
+    assert len(ds) == 10000
+
+def test_dataset_invalid_split():
+    with pytest.raises(ValueError, match="split"):
+        BEVDataset(root="data/", split="test")
+
+def test_dataset_label_map():
+    ds = BEVDataset(root="data/", split="train")
+    assert ds.class_name(0) == "airplane"
+    assert ds.class_name(9) == "truck"
+
+def test_dataset_repr():
+    ds = BEVDataset(root="data/", split="train")
+    assert "BEVDataset" in repr(ds)
