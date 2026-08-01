@@ -7,6 +7,8 @@ from src.models.resnet import BEVResNet
 from src.models.registry import ModelRegistry
 import src.models.resnet  # triggers registration
 from src.data.dataset import BEVDataset
+from src.training.callbacks import PrintLogger, EarlyStopping, Callback
+from src.utils.metrics import MetricTracker
 
 def test_config_defaults():
     cfg = BEVConfig()
@@ -152,3 +154,32 @@ def test_dataloader_val():
     dl = build_dataloader(split="val", batch_size=4)
     images, labels = next(iter(dl))
     assert images.shape == (4, 3, 256, 256)
+def test_callback_protocol():
+    """PrintLogger and EarlyStopping must satisfy Callback protocol."""
+    assert isinstance(PrintLogger(), Callback)
+    assert isinstance(EarlyStopping(), Callback)
+
+def test_early_stopping_triggers():
+    es = EarlyStopping(patience=2)
+    es.on_epoch_end(0, {"val_loss": 0.5})
+    assert not es.should_stop
+    es.on_epoch_end(1, {"val_loss": 0.6})  # no improvement
+    assert not es.should_stop
+    es.on_epoch_end(2, {"val_loss": 0.7})  # no improvement — triggers
+    assert es.should_stop
+
+def test_early_stopping_resets_on_improvement():
+    es = EarlyStopping(patience=2)
+    es.on_epoch_end(0, {"val_loss": 0.5})
+    es.on_epoch_end(1, {"val_loss": 0.6})  # counter = 1
+    es.on_epoch_end(2, {"val_loss": 0.3})  # improvement — counter resets
+    assert not es.should_stop
+    assert es.counter == 0
+
+def test_metric_tracker():
+    mt = MetricTracker(name="loss")
+    mt.update(1.0, n=4)
+    mt.update(2.0, n=4)
+    assert mt.compute() == 1.5
+    mt.reset()
+    assert mt.compute() == 0.0
