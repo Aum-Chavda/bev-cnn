@@ -183,3 +183,38 @@ def test_metric_tracker():
     assert mt.compute() == 1.5
     mt.reset()
     assert mt.compute() == 0.0
+
+from src.training.trainer import Trainer
+from src.data.dataset import build_dataloader
+from src.models.resnet import BEVResNet
+from src.utils.config import BEVConfig
+
+def test_trainer_one_epoch():
+    device       = "cuda" if torch.cuda.is_available() else "cpu"
+    cfg          = BEVConfig(epochs=1, batch_size=4, device=device)
+    model        = BEVResNet(cfg)
+    train_loader = build_dataloader(split="train", batch_size=4)
+    val_loader   = build_dataloader(split="val",   batch_size=4)
+    trainer      = Trainer(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        epochs=1,
+        device=device,
+        checkpoint_dir="checkpoints/",
+    )
+    # only run 2 batches to keep test fast
+    original_train = trainer.train_loader
+    trainer.train_loader = [next(iter(original_train)) for _ in range(2)]
+    trainer.val_loader   = [next(iter(val_loader))     for _ in range(2)]
+    trainer.fit()
+
+def test_trainer_from_config():
+    device       = "cuda" if torch.cuda.is_available() else "cpu"
+    cfg          = BEVConfig(epochs=1, batch_size=4, device=device)
+    model        = BEVResNet(cfg)
+    train_loader = build_dataloader(split="train", batch_size=4)
+    val_loader   = build_dataloader(split="val",   batch_size=4)
+    trainer      = Trainer.from_config(model, train_loader, val_loader, cfg)
+    assert trainer.epochs == cfg.epochs
+    assert trainer.device == cfg.device
