@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as T
 import torchvision.datasets as dsets
+from torch.utils.data import DataLoader
 
 
 class BEVDataset(Dataset):
@@ -73,3 +74,20 @@ class BEVDataset(Dataset):
             f"size={len(self)}, "
             f"cache={self.cache_size})"
         )
+
+def build_dataloader(
+    split: str = "train",
+    root: str = "data/",
+    batch_size: int = 8,
+    num_workers: int = 0,
+    shuffle: bool = True,
+) -> DataLoader:
+    dataset = BEVDataset(root=root, split=split)
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available(),  # only pin if GPU exists
+        drop_last=True,
+    )

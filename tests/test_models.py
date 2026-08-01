@@ -139,3 +139,16 @@ def test_dataset_label_map():
 def test_dataset_repr():
     ds = BEVDataset(root="data/", split="train")
     assert "BEVDataset" in repr(ds)
+
+from src.data.dataset import build_dataloader
+
+def test_dataloader_batch_shape():
+    dl = build_dataloader(split="train", batch_size=4)
+    images, labels = next(iter(dl))
+    assert images.shape == (4, 3, 256, 256)
+    assert labels.shape == (4,)
+
+def test_dataloader_val():
+    dl = build_dataloader(split="val", batch_size=4)
+    images, labels = next(iter(dl))
+    assert images.shape == (4, 3, 256, 256)
