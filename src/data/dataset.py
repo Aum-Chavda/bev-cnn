@@ -10,13 +10,6 @@ import torchvision.datasets as dsets
 
 
 class BEVDataset(Dataset):
-    """
-    OOP      : subclasses torch Dataset ABC, implements __len__ and __getitem__
-    DS&A     : LRU cache on _load_sample avoids re-reading disk
-    PyTorch  : returns (tensor, label) pairs consumed by DataLoader
-    """
-
-    # class-level label map — shared across all instances (like a static field)
     LABEL_MAP: Dict[int, str] = {
         0: "airplane", 1: "automobile", 2: "bird",  3: "cat",
         4: "deer",     5: "dog",        6: "frog",  7: "horse",
@@ -29,6 +22,7 @@ class BEVDataset(Dataset):
         split: str = "train",
         transform: Optional[Callable] = None,
         cache_size: int = 128,
+        size: Optional[int] = None,
     ):
         super().__init__()
 
@@ -40,54 +34,37 @@ class BEVDataset(Dataset):
         self.transform  = transform or self._default_transform()
         self.cache_size = cache_size
 
-        # load underlying CIFAR-10 (simulates BEV patches for now)
         is_train = split == "train"
         self._data = dsets.CIFAR10(
             root=str(self.root),
             train=is_train,
-            download=True,
+            download=False,   # already downloaded
         )
-
-        # LRU cache — wraps _load_sample so repeated access hits memory not disk
-        # DS&A: LRU = Least Recently Used — evicts oldest entry when cache is full
-        self._cached_load = functools.lru_cache(maxsize=cache_size)(self._load_sample)
-
-    # ------------------------------------------------------------------ #
-    #  PyTorch Dataset contract — these two methods MUST be implemented   #
-    # ------------------------------------------------------------------ #
+        self._size = size if size else len(self._data)
+        self._cache = functools.lru_cache(maxsize=cache_size)(self._load_sample)
 
     def __len__(self) -> int:
-        return len(self._data)
+        return self._size
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
-        image, label = self._cached_load(idx)
+        image, label = self._cache(idx)
         return self.transform(image), label
 
-    # ------------------------------------------------------------------ #
-    #  Private helpers                                                     #
-    # ------------------------------------------------------------------ #
-
     def _load_sample(self, idx: int):
-        """Raw load — result gets cached by LRU cache."""
         return self._data[idx]
 
     @staticmethod
     def _default_transform() -> T.Compose:
-        """
-        OOP: @staticmethod — belongs to the class but needs no instance.
-        Returns a composed pipeline of transforms.
-        """
         return T.Compose([
-            T.ToTensor(),                        # PIL → tensor (C,H,W), scales to [0,1]
-            T.Normalize(                         # zero-mean unit-variance per channel
+            T.ToTensor(),
+            T.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
             ),
-            T.Resize((256, 256)),                # match BEVConfig.input_size
+            T.Resize((256, 256)),
         ])
 
     def class_name(self, label: int) -> str:
-        """Human-readable label lookup — uses the class-level hash map."""
         return self.LABEL_MAP[label]
 
     def __repr__(self) -> str:
