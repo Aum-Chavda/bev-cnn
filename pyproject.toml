@@ -1,15 +1,28 @@
 [project]
 name = "bev-cnn"
 version = "0.1.0"
-description = "Add your description here"
+description = "BEV CNN Feature Extractor"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11,<3.12"
 dependencies = [
-    "torch>=2.5.1",
-    "torchvision>=0.20.1",
+    "torch",
+    "torchvision",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.2",
+    "pytest",
 ]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128" }
+]
+torchvision = [
+    { index = "pytorch-cu128" }
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

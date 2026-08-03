@@ -4,10 +4,9 @@ from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 import torchvision.datasets as dsets
-from torch.utils.data import DataLoader
 
 
 class BEVDataset(Dataset):
@@ -26,22 +25,19 @@ class BEVDataset(Dataset):
         size: Optional[int] = None,
     ):
         super().__init__()
-
         if split not in ("train", "val"):
             raise ValueError(f"split must be 'train' or 'val', got '{split}'")
-
         self.root       = Path(root)
         self.split      = split
-        self.transform  = transform or self._default_transform()
         self.cache_size = cache_size
-
+        self.transform  = transform or self._default_transform()
         is_train = split == "train"
         self._data = dsets.CIFAR10(
             root=str(self.root),
             train=is_train,
-            download=False,   # already downloaded
+            download=False,
         )
-        self._size = size if size else len(self._data)
+        self._size  = size if size else len(self._data)
         self._cache = functools.lru_cache(maxsize=cache_size)(self._load_sample)
 
     def __len__(self) -> int:
@@ -62,7 +58,6 @@ class BEVDataset(Dataset):
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
             ),
-            T.Resize((256, 256)),
         ])
 
     def class_name(self, label: int) -> str:
@@ -75,19 +70,21 @@ class BEVDataset(Dataset):
             f"cache={self.cache_size})"
         )
 
+
 def build_dataloader(
     split: str = "train",
     root: str = "data/",
     batch_size: int = 8,
     num_workers: int = 0,
     shuffle: bool = True,
+    size: Optional[int] = None,
 ) -> DataLoader:
-    dataset = BEVDataset(root=root, split=split)
+    dataset = BEVDataset(root=root, split=split, size=size)
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available(),  # only pin if GPU exists
+        pin_memory=torch.cuda.is_available(),
         drop_last=True,
     )

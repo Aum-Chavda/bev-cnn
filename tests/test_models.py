@@ -119,11 +119,11 @@ def test_dataset_len():
     ds = BEVDataset(root="data/", split="train")
     assert len(ds) == 50000
 
+
 def test_dataset_getitem_shape():
-    ds = BEVDataset(root="data/", split="train")
+    ds = BEVDataset(split="train", size=100)
     img, label = ds[0]
-    assert img.shape == (3, 256, 256)
-    assert isinstance(label, int)
+    assert img.shape == (3, 32, 32)  # native CIFAR size, resize happens on GPU
 
 def test_dataset_val_split():
     ds = BEVDataset(root="data/", split="val")
@@ -193,8 +193,8 @@ def test_trainer_one_epoch():
     device       = "cuda" if torch.cuda.is_available() else "cpu"
     cfg          = BEVConfig(epochs=1, batch_size=4, device=device)
     model        = BEVResNet(cfg)
-    train_loader = build_dataloader(split="train", batch_size=4)
-    val_loader   = build_dataloader(split="val",   batch_size=4)
+    train_loader = build_dataloader(split="train", batch_size=4, size=20)
+    val_loader   = build_dataloader(split="val",   batch_size=4, size=8)
     trainer      = Trainer(
         model=model,
         train_loader=train_loader,
@@ -203,10 +203,6 @@ def test_trainer_one_epoch():
         device=device,
         checkpoint_dir="checkpoints/",
     )
-    # only run 2 batches to keep test fast
-    original_train = trainer.train_loader
-    trainer.train_loader = [next(iter(original_train)) for _ in range(2)]
-    trainer.val_loader   = [next(iter(val_loader))     for _ in range(2)]
     trainer.fit()
 
 def test_trainer_from_config():

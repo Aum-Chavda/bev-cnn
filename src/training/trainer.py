@@ -126,6 +126,9 @@ class Trainer:
 
         for batch_idx, (images, labels) in enumerate(self.train_loader):
             images = images.to(self.device)
+            images = torch.nn.functional.interpolate(
+    images, size=(256, 256), mode='bilinear', align_corners=False
+)
             labels = labels.to(self.device)
 
             self.optimizer.zero_grad()
@@ -162,6 +165,9 @@ class Trainer:
         with torch.no_grad():  # no gradient computation during validation
             for images, labels in self.val_loader:
                 images = images.to(self.device)
+                images = torch.nn.functional.interpolate(
+    images, size=(256, 256), mode='bilinear', align_corners=False
+)
                 labels = labels.to(self.device)
 
                 features = self.model(images)
