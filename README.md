@@ -89,8 +89,23 @@ uv run pytest tests/ -v
 - Python: type annotations, dunders, @staticmethod, @classmethod, @decorator
 - Software Engineering: bottom-up testing, separation of concerns, clean architecture
 
+## Training Results (5 epochs, CIFAR-10, GTX 1650 Ti)
+
+| Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
+|-------|-----------|-----------|----------|---------|
+| 1     | 1.197     | 57.2%     | 0.916    | 67.8%   |
+| 2     | 0.728     | 74.8%     | 0.708    | 75.2%   |
+| 3     | 0.505     | 82.6%     | 0.637    | 78.3%   |
+| 4     | 0.295     | 90.0%     | 0.558    | 81.3%   |
+| 5     | 0.114     | 96.5%     | 0.598    | 82.4%   |
+
+- 82.4% validation accuracy from scratch in 5 epochs
+- Overfitting observed from epoch 4 (train 97% vs val 82%)
+- Next step: data augmentation (RandomCrop, ColorJitter, RandomFlip)
+- Hardware: GTX 1650 Ti 4GB, FP32, batch_size=32, input=64x64
+
 ## Status
 - [x] Phase 1 — OOP backbone (BEVConfig, BaseBackbone, ConvBNReLU, ResidualBlock, BEVResNet, ModelRegistry)
 - [x] Phase 2 — Data pipeline (BEVDataset, LRU cache, build_dataloader, GPU resize)
 - [x] Phase 3 — Training (Trainer, FP16, heapq checkpoints, Callback Protocol, EarlyStopping)
-- [ ] Phase 4 — Ablation + forward hooks + feature map visualisation
+- [x] Phase 4 — Ablation + forward hooks + feature map visualisation
