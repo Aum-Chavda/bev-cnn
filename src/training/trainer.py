@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from src.models.base import BaseBackbone
 from src.training.callbacks import Callback
 from src.utils.metrics import MetricTracker
+import torchvision.transforms.v2 as T2
 
 
 @dataclass
@@ -90,7 +91,9 @@ class Trainer:
 
             self._fire_callbacks("on_epoch_end", epoch, logs)
             self._save_checkpoint(epoch, val_loss)
-            self.scheduler.step()
+            if epoch > 1:
+                self.scheduler.step()
+
 
             # check early stopping
             for cb in self.callbacks:
@@ -144,6 +147,7 @@ class Trainer:
             # FP16 backward pass
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
+            self.scheduler.step()
             self.scaler.update()
 
             acc = (logits.argmax(dim=1) == labels).float().mean().item()

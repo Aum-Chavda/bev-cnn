@@ -147,13 +147,13 @@ from src.data.dataset import build_dataloader
 def test_dataloader_batch_shape():
     dl = build_dataloader(split="train", batch_size=4)
     images, labels = next(iter(dl))
-    assert images.shape == (4, 3, 256, 256)
+    assert images.shape == (4, 3, 32, 32)  # native CIFAR size
     assert labels.shape == (4,)
 
 def test_dataloader_val():
     dl = build_dataloader(split="val", batch_size=4)
     images, labels = next(iter(dl))
-    assert images.shape == (4, 3, 256, 256)
+    assert images.shape == (4, 3, 32, 32)  # native CIFAR size
 def test_callback_protocol():
     """PrintLogger and EarlyStopping must satisfy Callback protocol."""
     assert isinstance(PrintLogger(), Callback)
@@ -214,3 +214,43 @@ def test_trainer_from_config():
     trainer      = Trainer.from_config(model, train_loader, val_loader, cfg)
     assert trainer.epochs == cfg.epochs
     assert trainer.device == cfg.device
+
+from src.utils.visualize import FeatureMapHook, ModelSummary, save_feature_maps
+
+def test_feature_hook_captures():
+    cfg   = BEVConfig()
+    model = BEVResNet(cfg).eval()
+    x     = torch.randn(1, 3, 256, 256)
+
+    with FeatureMapHook(model, ["stage1", "stage2"]) as hook:
+        model(x)
+
+    assert "stage1" in hook.features
+    assert "stage2" in hook.features
+    assert hook.features["stage1"].shape[1] == 64
+
+def test_feature_hook_cleanup():
+    cfg   = BEVConfig()
+    model = BEVResNet(cfg).eval()
+    x     = torch.randn(1, 3, 256, 256)
+
+    with FeatureMapHook(model, ["stage1"]) as hook:
+        model(x)
+
+    assert len(hook._handles) == 0  # hooks removed after context exit
+
+def test_model_summary():
+    cfg     = BEVConfig()
+    model   = BEVResNet(cfg)
+    summary = ModelSummary(model)
+    text    = summary.summary()
+    assert "Total" in text
+    assert "Layer" in text
+
+def test_save_feature_maps(tmp_path):
+    features = {
+        "stage1": torch.randn(1, 64, 128, 128),
+        "stage2": torch.randn(1, 128, 64, 64),
+    }
+    save_feature_maps(features, output_dir=str(tmp_path))
+    assert (tmp_path / "feature_map_report.txt").exists()
