@@ -61,13 +61,16 @@ class Trainer:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         # PyTorch optimizer and FP16 scaler
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        self._classifier = nn.Linear(512, 10).to(device)
+        self.optimizer = torch.optim.Adam(
+                list(model.parameters()) + list(self._classifier.parameters()),
+                lr=lr
+                )
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             self.optimizer, T_max=epochs
         )
         self.scaler = torch.amp.GradScaler("cuda") if torch.cuda.is_available() else torch.amp.GradScaler("cpu")          # FP16 gradient scaling
         self.criterion = nn.CrossEntropyLoss()
-
         # DS&A: max-heap of size keep_top_k using negated loss
         # stores worst checkpoints so we can evict them when a better one arrives
         self._checkpoint_heap: List[CheckpointEntry] = []
@@ -129,30 +132,33 @@ class Trainer:
 
         for batch_idx, (images, labels) in enumerate(self.train_loader):
             images = images.to(self.device)
-            images = torch.nn.functional.interpolate(
-    images, size=(256, 256), mode='bilinear', align_corners=False
-)
+
+
             labels = labels.to(self.device)
 
             self.optimizer.zero_grad()
 
-            # FP16 forward pass — uses less VRAM on your GTX 1650 Ti
-            with torch.amp.autocast(device_type=self.device):
-                features = self.model(images)
-                # use C5 (most abstract features) for classification
-                pooled = features["C5"].mean(dim=[2, 3])  # global average pool
-                logits = self._classify(pooled)
-                loss   = self.criterion(logits, labels)
+            # FP16 forward pass — uses less VRAM on your GTX 1650 T
+            features = self.model(images)
+            # use C5 (most abstract features) for classification
+            pooled = features["C5"].mean(dim=[2, 3])  # global average pool
+            logits = self._classify(pooled)
+            loss   = self.criterion(logits, labels)
 
             # FP16 backward pass
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scheduler.step()
-            self.scaler.update()
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(
+                list(self.model.parameters()) + list(self._classifier.parameters()),
+                max_norm=1.0
+)
+            self.optimizer.step()
 
             acc = (logits.argmax(dim=1) == labels).float().mean().item()
             loss_tracker.update(loss.item(), n=len(labels))
             acc_tracker.update(acc, n=len(labels))
+            if batch_idx % 100 == 0:
+                print(f"  batch {batch_idx}/{len(self.train_loader)} loss={loss.item():.4f}", flush=True)
 
             self._fire_callbacks("on_batch_end", batch_idx, {
                 "train_loss": loss.item(),
@@ -169,9 +175,6 @@ class Trainer:
         with torch.no_grad():  # no gradient computation during validation
             for images, labels in self.val_loader:
                 images = images.to(self.device)
-                images = torch.nn.functional.interpolate(
-    images, size=(256, 256), mode='bilinear', align_corners=False
-)
                 labels = labels.to(self.device)
 
                 features = self.model(images)

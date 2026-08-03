@@ -123,7 +123,7 @@ def test_dataset_len():
 def test_dataset_getitem_shape():
     ds = BEVDataset(split="train", size=100)
     img, label = ds[0]
-    assert img.shape == (3, 32, 32)  # native CIFAR size, resize happens on GPU
+    assert img.shape == (3, 64, 64)  # native CIFAR size, resize happens on GPU
 
 def test_dataset_val_split():
     ds = BEVDataset(root="data/", split="val")

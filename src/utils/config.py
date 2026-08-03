@@ -4,7 +4,7 @@ from typing import Tuple
 
 @dataclass
 class BEVConfig:
-    input_size: Tuple[int, int] = (256, 256)
+    input_size: Tuple[int, int] = (64, 64)
     in_channels: int = 3
     base_channels: int = 64
     num_stages: int = 4
